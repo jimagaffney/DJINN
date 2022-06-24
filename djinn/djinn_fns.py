@@ -22,6 +22,12 @@ try:
 except:
     import tensorflow as tf
 
+try:
+    import tqdm
+except ImportError:
+    use_pbar = False
+else:
+    use_pbar = True
 
 import numpy as np
 from sklearn.tree import _tree
@@ -366,13 +372,19 @@ def tf_dropout_regression(regression, ttn, xscale, yscale, x1, y1, ntrees, filen
         #initialize vars & launch session
         init = tf.global_variables_initializer()
         saver = tf.train.Saver()
+
+        if use_pbar:
+            epoch_iter = tqdm.trange(training_epochs, desc="{}, tree {}".format(modelname, pp))
+        else:
+            epoch_iter = range(training_epochs)
+
         with tf.Session() as sess:
             sess.run(init)
             #save init weights/biases
             nninfo['initial_weights'][keys] = sess.run(weights)
             nninfo['initial_biases'][keys] = sess.run(biases)
             #train in minibatches
-            for epoch in range(training_epochs):
+            for epoch in epoch_iter:
                 avg_cost = 0.
                 total_batch = int(len(xtrain)/float(batch_size))
                 for i in range(total_batch):
@@ -385,18 +397,26 @@ def tf_dropout_regression(regression, ttn, xscale, yscale, x1, y1, ntrees, filen
                 train_accur[pp][epoch] = avg_cost
                 valid_accur[pp][epoch] = cost.eval({x: xtest, y: ytest, keep_prob:dropout_keep_prob})
                 # display training progresss
-                if epoch % display_step == 0:
-                    if regression == True:
-                        print("Epoch:", '%04d' % (epoch+1), "cost=", "{:.9f}".format(avg_cost))
-                    #for classification, print cost and accuracy:
-                    else:
-                        avg_accuracy = accuracy.eval({x: xtrain, y: ytrain, keep_prob:dropout_keep_prob})
-                        print("Epoch:", '%04d' % (epoch+1), "cost=", "{:.9f}".format(avg_cost),
-                               "accuracy=", "{:.3f}".format(avg_accuracy))
+
+                if use_pbar:
+                    epoch_iter.set_postfix([
+                        ["train loss", avg_cost],
+                        ["test loss", valid_accur[pp][epoch]]
+                        ])
+                else:
+                    if epoch % display_step == 0:
+                        if regression == True:
+                            print("Epoch:", '%04d' % (epoch+1), "cost=", "{:.9f}".format(avg_cost))
+                        #for classification, print cost and accuracy:
+                        else:
+                            avg_accuracy = accuracy.eval({x: xtrain, y: ytrain, keep_prob:dropout_keep_prob})
+                            print("Epoch:", '%04d' % (epoch+1), "cost=", "{:.9f}".format(avg_cost),
+                                "accuracy=", "{:.3f}".format(avg_accuracy))
 
 
                 # raise Exception
-            print("Optimization Finished!")
+            if not use_pbar:
+                print("Optimization Finished!")
 
             #save final weights/biases
             nninfo['final_weights'][keys] = sess.run(weights)

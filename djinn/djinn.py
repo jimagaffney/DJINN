@@ -217,7 +217,7 @@ class DJINN_Regressor():
         # Map trees to neural networks
         tree_to_network = tree_to_nn_weights(self.__regression, X, Y, self.__n_trees, rfr, random_state)
         if(batch_size == 0): batch_size = int(np.ceil(0.05*len(Y)))
-        tf_dropout_regression(self.__regression, tree_to_network, self.__xscale,
+        NNinfo = tf_dropout_regression(self.__regression, tree_to_network, self.__xscale,
                              self.__yscale, X, Y,ntrees=self.__n_trees,
                              filename=file_name, learnrate=learn_rate,
                              training_epochs=epochs, batch_size=batch_size,
@@ -231,6 +231,8 @@ class DJINN_Regressor():
         if (save_model == True):
             with open('%s%s.pkl'%(self.modelpath, self.modelname), 'wb') as f:
                 cPickle.dump(self, f)
+
+        return NNinfo
 
 
 
@@ -265,7 +267,7 @@ class DJINN_Regressor():
             batch_size=optimal['batch_size']
             epochs=optimal['epochs']
 
-        self.train(X, Y, epochs, learn_rate, batch_size, weight_reg,
+        return self.train(X, Y, epochs, learn_rate, batch_size, weight_reg,
               display_step, save_files, file_name, save_model,
               model_name, model_path, random_state)
 
